@@ -10,6 +10,7 @@ import { getStripe } from "@/lib/stripe/stripe";
 export type StripeSuccessOrderDetails = {
   id: string;
   orderNumber: string;
+  email: string;
   currency: string;
   totalAmount: string;
   items: Array<{
@@ -30,6 +31,7 @@ function formatMoney2(d: Prisma.Decimal | { toString(): string }): string {
 function orderToStripeSuccessDetails(order: {
   id: string;
   orderNumber: string;
+  email: string;
   currency: string;
   totalAmount: Prisma.Decimal;
   items: Array<{ productName: string; quantity: number; price: Prisma.Decimal }>;
@@ -37,6 +39,7 @@ function orderToStripeSuccessDetails(order: {
   return {
     id: order.id,
     orderNumber: order.orderNumber,
+    email: order.email.trim(),
     currency: order.currency.trim().toUpperCase() || "USD",
     totalAmount: formatMoney2(order.totalAmount),
     items: order.items.map((item) => ({
@@ -82,6 +85,7 @@ export async function finalizeStripeCheckoutSuccess(
         select: {
           id: true,
           orderNumber: true,
+          email: true,
           paymentStatus: true,
           currency: true,
           totalAmount: true,

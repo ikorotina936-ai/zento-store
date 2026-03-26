@@ -46,6 +46,13 @@ function textOrDash(v: string | null | undefined): string {
   return s.length > 0 ? s : "—";
 }
 
+function formatOrderDateTime(d: Date): string {
+  return d.toLocaleString("uk-UA", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
+}
+
 function AdminNotFound() {
   return (
     <div className="min-h-full bg-zinc-100 text-zinc-900">
@@ -85,6 +92,8 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
       id: true,
       orderNumber: true,
       createdAt: true,
+      paidAt: true,
+      fulfilledAt: true,
       status: true,
       paymentStatus: true,
       fulfillmentStatus: true,
@@ -149,6 +158,39 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
   const savePaymentStatus = updateOrderPaymentStatus.bind(null, order.id);
   const saveFulfillment = updateOrderFulfillmentStatus.bind(null, order.id);
   const saveTracking = updateOrderTrackingNumber.bind(null, order.id);
+
+  const paidDone = order.paymentStatus === $Enums.PaymentStatus.PAID;
+  const fulfilledDone =
+    order.fulfillmentStatus === $Enums.FulfillmentStatus.FULFILLED;
+
+  const timelineSteps = [
+    {
+      key: "created",
+      label: "Created",
+      done: true as const,
+      detail: formatOrderDateTime(order.createdAt),
+    },
+    {
+      key: "paid",
+      label: "Paid",
+      done: paidDone,
+      detail: paidDone
+        ? order.paidAt != null
+          ? formatOrderDateTime(order.paidAt)
+          : "No timestamp in DB — set payment to Paid once or wait for next Stripe sync"
+        : "Pending",
+    },
+    {
+      key: "fulfilled",
+      label: "Fulfilled",
+      done: fulfilledDone,
+      detail: fulfilledDone
+        ? order.fulfilledAt != null
+          ? formatOrderDateTime(order.fulfilledAt)
+          : "No timestamp in DB — set fulfillment to Fulfilled once to record"
+        : "Pending",
+    },
+  ] as const;
 
   const detailRows: Array<{ label: string; value: string; mono?: boolean }> = [
     { label: "id", value: order.id, mono: true },
@@ -222,6 +264,45 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           <h1 className="mt-1 font-mono text-lg font-semibold text-zinc-950">
             {order.orderNumber}
           </h1>
+
+          <div className="mt-6 border-t border-zinc-100 pt-6">
+            <h2 className="text-sm font-semibold text-zinc-950">
+              Status timeline
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Created → Paid → Fulfilled (timestamps from database)
+            </p>
+            <ol className="mt-4 space-y-0" aria-label="Order status timeline">
+              {timelineSteps.map((step, index) => (
+                <li key={step.key} className="flex gap-3">
+                  <div className="flex w-4 shrink-0 flex-col items-center pt-0.5">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        step.done ? "bg-emerald-500" : "bg-zinc-300"
+                      }`}
+                      aria-hidden
+                    />
+                    {index < timelineSteps.length - 1 ? (
+                      <span
+                        className="mt-1 min-h-[1.75rem] w-px flex-1 bg-zinc-200"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </div>
+                  <div
+                    className={
+                      index < timelineSteps.length - 1 ? "pb-4" : "pb-0"
+                    }
+                  >
+                    <p className="text-sm font-semibold text-zinc-950">
+                      {step.label}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-600">{step.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
 
           <div className="mt-6 border-t border-zinc-100 pt-6">
             <h2 className="text-sm font-semibold text-zinc-950">

@@ -58,16 +58,30 @@ export async function updateOrderPaymentStatus(
   formData: FormData,
 ): Promise<void> {
   const next = parsePaymentStatus(formData.get("paymentStatus"));
-  if (!next || !orderId.trim()) {
+  const id = orderId.trim();
+  if (!next || !id) {
+    return;
+  }
+
+  const current = await prisma.order.findUnique({
+    where: { id },
+    select: { paidAt: true },
+  });
+  if (!current) {
     return;
   }
 
   await prisma.order.update({
-    where: { id: orderId.trim() },
-    data: { paymentStatus: next },
+    where: { id },
+    data: {
+      paymentStatus: next,
+      ...(next === $Enums.PaymentStatus.PAID && current.paidAt == null
+        ? { paidAt: new Date() }
+        : {}),
+    },
   });
 
-  revalidatePath(`/admin/orders/${orderId.trim()}`);
+  revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/orders");
 }
 
@@ -76,16 +90,31 @@ export async function updateOrderFulfillmentStatus(
   formData: FormData,
 ): Promise<void> {
   const next = parseFulfillmentStatus(formData.get("fulfillmentStatus"));
-  if (!next || !orderId.trim()) {
+  const id = orderId.trim();
+  if (!next || !id) {
+    return;
+  }
+
+  const current = await prisma.order.findUnique({
+    where: { id },
+    select: { fulfilledAt: true },
+  });
+  if (!current) {
     return;
   }
 
   await prisma.order.update({
-    where: { id: orderId.trim() },
-    data: { fulfillmentStatus: next },
+    where: { id },
+    data: {
+      fulfillmentStatus: next,
+      ...(next === $Enums.FulfillmentStatus.FULFILLED &&
+      current.fulfilledAt == null
+        ? { fulfilledAt: new Date() }
+        : {}),
+    },
   });
 
-  revalidatePath(`/admin/orders/${orderId.trim()}`);
+  revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/orders");
 }
 

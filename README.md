@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment variables
+
+Copy [`.env.example`](./.env.example) to `.env` and set the values your deployment needs.
+
+**Resend (order confirmation emails):** In Resend test mode, emails are delivered only to the address associated with your Resend account—not to arbitrary customer inboxes. To send confirmations to real customers, verify a sending domain in the [Resend](https://resend.com) dashboard and set `RESEND_FROM` to a verified address on that domain (for example `Store Name <orders@yourdomain.com>`), in addition to `RESEND_API_KEY`. Details are also commented in `.env.example`.
+
 ## Getting Started
 
 First, run the development server:

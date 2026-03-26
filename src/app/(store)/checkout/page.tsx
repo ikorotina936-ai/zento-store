@@ -19,6 +19,8 @@ import {
 } from "@/lib/stripe/checkout-from-cart";
 import { isStripeConfigured } from "@/lib/stripe/stripe";
 
+import { CheckoutFormActions } from "./checkout-form-actions";
+import { CheckoutSuccessHomeRedirect } from "./checkout-success-home-redirect";
 import { StripeCheckoutSuccessClient } from "./stripe-checkout-success-client";
 
 export const metadata: Metadata = {
@@ -46,6 +48,10 @@ function formatMoney(amount: number, currency: string): string {
   }
 }
 
+/** HTML5: `required` alone allows whitespace-only; pattern requires at least one non-space. */
+const REQUIRED_NON_EMPTY_PATTERN = ".*\\S.*";
+const REQUIRED_NON_EMPTY_TITLE =
+  "Обов’язкове поле. Введіть текст, не лише пробіли.";
 const checkoutFormSchema = z.object({
   fullName: z.string().trim().min(1).max(255),
   email: z.string().trim().email().max(255),
@@ -334,20 +340,35 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
     sp.stripe_success === "1" && Boolean(sp.session_id);
 
   if (showCodSuccess) {
+    const codOrder = await prisma.order.findUnique({
+      where: { orderNumber: sp.orderNumber! },
+      select: { email: true },
+    });
+
     return (
       <div className="min-h-full bg-[#fafafa] text-zinc-900">
         <div className="mx-auto flex max-w-lg flex-col items-center px-6 py-20 text-center sm:py-28">
           <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 px-10 py-14 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-700/80">
-              Готово
-            </p>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-emerald-950">
-              Дякуємо за замовлення
+            <h1 className="text-2xl font-semibold tracking-tight text-emerald-950">
+              Order confirmed
             </h1>
-            <p className="mt-3 font-mono text-sm text-emerald-900">
-              № {sp.orderNumber}
+            <p className="mt-6 text-sm font-medium text-emerald-800/90">
+              Order number
             </p>
-            <p className="mt-4 text-sm leading-relaxed text-emerald-900/85">
+            <p className="mt-1 font-mono text-lg font-semibold text-emerald-950">
+              {sp.orderNumber}
+            </p>
+            {codOrder?.email ? (
+              <>
+                <p className="mt-5 text-sm font-medium text-emerald-800/90">
+                  Email
+                </p>
+                <p className="mt-1 break-all text-base text-emerald-950">
+                  {codOrder.email}
+                </p>
+              </>
+            ) : null}
+            <p className="mt-6 text-sm leading-relaxed text-emerald-900/85">
               Замовлення збережено в системі. Якщо очікується оплата окремо —
               менеджер зв’яжеться з вами за вказаним email.
             </p>
@@ -365,6 +386,7 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
                 Кошик
               </Link>
             </div>
+            <CheckoutSuccessHomeRedirect className="mt-6 text-center text-xs text-emerald-800/70" />
           </div>
         </div>
       </div>
@@ -376,12 +398,6 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
       <div className="min-h-full bg-[#fafafa] text-zinc-900">
         <div className="mx-auto flex max-w-lg flex-col items-center px-6 py-20 text-center sm:py-28">
           <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/50 px-10 py-14 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-indigo-700/80">
-              Stripe
-            </p>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-indigo-950">
-              Дякуємо за оплату
-            </h1>
             <StripeCheckoutSuccessClient sessionId={sp.session_id} />
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
@@ -576,21 +592,32 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
               <code className="rounded bg-zinc-100 px-1 text-xs">metadata</code>{" "}
               та email отримувача. Ціни завжди з бази, не з браузера.
             </p>
+            <p className="mt-2 text-sm text-zinc-500">
+              Поля з <span className="text-red-600">*</span> обов’язкові; порожні
+              значення або лише пробіли не приймаються.
+            </p>
 
-            <form className="mt-8 space-y-5">
+            <form className="mt-8 space-y-5" id="checkout-form">
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="fullName"
                     className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
                   >
-                    Повне ім’я
+                    Повне ім’я{" "}
+                    <span className="text-red-600" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
                     id="fullName"
                     name="fullName"
                     type="text"
                     required
+                    minLength={1}
+                    maxLength={255}
+                    pattern={REQUIRED_NON_EMPTY_PATTERN}
+                    title={REQUIRED_NON_EMPTY_TITLE}
                     autoComplete="name"
                     className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none ring-zinc-900/10 transition-[box-shadow,border-color] focus:border-zinc-400 focus:ring-4"
                   />
@@ -600,13 +627,17 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
                     htmlFor="email"
                     className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
                   >
-                    Email
+                    Email{" "}
+                    <span className="text-red-600" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
                     id="email"
                     name="email"
                     type="email"
                     required
+                    maxLength={255}
                     autoComplete="email"
                     className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/10"
                   />
@@ -616,13 +647,20 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
                     htmlFor="phone"
                     className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
                   >
-                    Телефон
+                    Телефон{" "}
+                    <span className="text-red-600" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
                     id="phone"
                     name="phone"
                     type="tel"
                     required
+                    minLength={1}
+                    maxLength={32}
+                    pattern={REQUIRED_NON_EMPTY_PATTERN}
+                    title={REQUIRED_NON_EMPTY_TITLE}
                     autoComplete="tel"
                     className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/10"
                   />
@@ -632,13 +670,20 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
                     htmlFor="city"
                     className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
                   >
-                    Місто
+                    Місто{" "}
+                    <span className="text-red-600" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
                     id="city"
                     name="city"
                     type="text"
                     required
+                    minLength={1}
+                    maxLength={120}
+                    pattern={REQUIRED_NON_EMPTY_PATTERN}
+                    title={REQUIRED_NON_EMPTY_TITLE}
                     autoComplete="address-level2"
                     className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/10"
                   />
@@ -648,13 +693,20 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
                     htmlFor="line1"
                     className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
                   >
-                    Адреса (вулиця, будинок)
+                    Адреса (вулиця, будинок){" "}
+                    <span className="text-red-600" aria-hidden="true">
+                      *
+                    </span>
                   </label>
                   <input
                     id="line1"
                     name="line1"
                     type="text"
                     required
+                    minLength={1}
+                    maxLength={255}
+                    pattern={REQUIRED_NON_EMPTY_PATTERN}
+                    title={REQUIRED_NON_EMPTY_TITLE}
                     autoComplete="street-address"
                     className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/10"
                   />
@@ -678,34 +730,16 @@ export default async function CheckoutPage({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:flex-wrap">
-                <button
-                  type="submit"
-                  formAction={submitCheckoutOrder}
-                  disabled={rows.length === 0 || mixedCurrency}
-                  className="inline-flex flex-1 items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[220px]"
-                >
-                  Підтвердити замовлення
-                </button>
-                <button
-                  type="submit"
-                  formAction={startStripeCheckoutSession}
-                  disabled={
-                    rows.length === 0 ||
-                    mixedCurrency ||
-                    !isStripeConfigured()
-                  }
-                  className="inline-flex flex-1 items-center justify-center rounded-full border border-violet-300 bg-violet-50 px-6 py-3 text-sm font-medium text-violet-950 transition-colors hover:border-violet-400 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[220px]"
-                >
-                  Оплатити карткою (Stripe)
-                </button>
-                <Link
-                  href="/cart"
-                  className="inline-flex flex-1 items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-50 sm:min-w-[200px]"
-                >
-                  Назад до кошика
-                </Link>
-              </div>
+              <CheckoutFormActions
+                submitCheckoutOrder={submitCheckoutOrder}
+                startStripeCheckoutSession={startStripeCheckoutSession}
+                codDisabled={rows.length === 0 || mixedCurrency}
+                stripeDisabled={
+                  rows.length === 0 ||
+                  mixedCurrency ||
+                  !isStripeConfigured()
+                }
+              />
             </form>
           </section>
         </div>

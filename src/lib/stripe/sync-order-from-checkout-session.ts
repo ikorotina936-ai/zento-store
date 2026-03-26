@@ -122,6 +122,7 @@ export type SyncPaidOrderResult =
 
 /**
  * Ідемпотентно створює або оновлює Order після успішної оплати Checkout Session.
+ * Один рядок на `stripeSessionId` (уникальний індекс + атомарний upsert), повторні webhook не створюють дублікатів.
  */
 export async function syncPaidOrderFromCheckoutSessionId(
   sessionId: string,
@@ -178,36 +179,22 @@ export async function syncPaidOrderFromCheckoutSessionId(
 
     const contact = orderContactFromSessionMetadata(session.metadata);
 
-    const existing = await prisma.order.findUnique({
+    const prior = await prisma.order.findUnique({
       where: { stripeSessionId: sessionId },
+      select: { id: true, paymentStatus: true },
     });
 
-    if (existing) {
-      if (existing.paymentStatus === "PAID") {
-        return { ok: true, orderId: existing.id, alreadyPaid: true };
-      }
-      await prisma.order.update({
-        where: { id: existing.id },
-        data: {
-          status: "PROCESSING",
-          paymentStatus: "PAID",
-          fulfillmentStatus: "UNFULFILLED",
-          stripePaymentIntentId: paymentIntentId,
-          totalAmount: totalMajor,
-          subtotalAmount: totalMajor,
-          currency: currency.toUpperCase(),
-          email,
-          ...contact,
-        },
-      });
-      return { ok: true, orderId: existing.id, alreadyPaid: false };
+    if (prior?.paymentStatus === "PAID") {
+      return { ok: true, orderId: prior.id, alreadyPaid: true };
     }
 
+    const paidAt = new Date();
     const orderNumber = generateOrderNumber();
 
     try {
-      const created = await prisma.order.create({
-        data: {
+      let order = await prisma.order.upsert({
+        where: { stripeSessionId: sessionId },
+        create: {
           orderNumber,
           email,
           ...contact,
@@ -217,6 +204,7 @@ export async function syncPaidOrderFromCheckoutSessionId(
           status: "PROCESSING",
           paymentStatus: "PAID",
           fulfillmentStatus: "UNFULFILLED",
+          paidAt,
           stripeSessionId: sessionId,
           stripePaymentIntentId: paymentIntentId,
           items: {
@@ -229,8 +217,27 @@ export async function syncPaidOrderFromCheckoutSessionId(
             })),
           },
         },
+        update: {
+          status: "PROCESSING",
+          paymentStatus: "PAID",
+          fulfillmentStatus: "UNFULFILLED",
+          stripePaymentIntentId: paymentIntentId,
+          totalAmount: totalMajor,
+          subtotalAmount: totalMajor,
+          currency: currency.toUpperCase(),
+          email,
+          ...contact,
+        },
       });
-      return { ok: true, orderId: created.id, alreadyPaid: false };
+
+      if (order.paidAt == null) {
+        order = await prisma.order.update({
+          where: { id: order.id },
+          data: { paidAt: new Date() },
+        });
+      }
+
+      return { ok: true, orderId: order.id, alreadyPaid: false };
     } catch (e) {
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -238,9 +245,15 @@ export async function syncPaidOrderFromCheckoutSessionId(
       ) {
         const race = await prisma.order.findUnique({
           where: { stripeSessionId: sessionId },
+          select: {
+            id: true,
+            paymentStatus: true,
+            paidAt: true,
+          },
         });
         if (race) {
-          if (race.paymentStatus !== "PAID") {
+          const wasPaid = race.paymentStatus === "PAID";
+          if (!wasPaid) {
             await prisma.order.update({
               where: { id: race.id },
               data: {
@@ -252,6 +265,7 @@ export async function syncPaidOrderFromCheckoutSessionId(
                 subtotalAmount: totalMajor,
                 currency: currency.toUpperCase(),
                 email,
+                paidAt: race.paidAt ?? new Date(),
                 ...contact,
               },
             });
@@ -259,11 +273,11 @@ export async function syncPaidOrderFromCheckoutSessionId(
           return {
             ok: true,
             orderId: race.id,
-            alreadyPaid: true,
+            alreadyPaid: wasPaid,
           };
         }
       }
-      console.error("[stripe/sync-order] create failed", sessionId, e);
+      console.error("[stripe/sync-order] upsert failed", sessionId, e);
       return { ok: false, skipped: false, error: e };
     }
   } catch (e) {

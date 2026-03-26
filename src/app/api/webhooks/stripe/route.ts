@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
+import { sendOrderConfirmationEmail } from "@/lib/email/send-order-confirmation";
 import { getStripe } from "@/lib/stripe/stripe";
 import { syncPaidOrderFromCheckoutSessionId } from "@/lib/stripe/sync-order-from-checkout-session";
 
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
  * Подія `checkout.session.completed` — ідемпотентний upsert Order (stripeSessionId).
  */
 export async function POST(request: Request) {
+  console.log("[webhooks/stripe][debug] POST handler start");
+
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json(
       { error: "stripe_not_configured" },
@@ -47,12 +50,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
 
+  console.log("[webhooks/stripe][debug] event.type", event.type);
+
   try {
     if (event.type === "checkout.session.completed") {
+      console.log(
+        "[webhooks/stripe][debug] entered checkout.session.completed branch",
+      );
       const obj = event.data.object as Stripe.Checkout.Session;
       const sessionId = obj.id;
 
       const result = await syncPaidOrderFromCheckoutSessionId(sessionId);
+      console.log(
+        "[webhooks/stripe][debug] syncPaidOrderFromCheckoutSessionId result",
+        result,
+      );
 
       if (!result.ok) {
         if (result.skipped) {
@@ -79,6 +91,39 @@ export async function POST(request: Request) {
           result.orderId,
           result.alreadyPaid ? "(idempotent)" : "",
         );
+
+        if (!result.alreadyPaid) {
+          console.log(
+            "[webhooks/stripe][debug] sendOrderConfirmationEmail: invoking",
+            { orderId: result.orderId },
+          );
+          try {
+            const mail = await sendOrderConfirmationEmail(result.orderId);
+            if (!mail.sent) {
+              console.warn(
+                "[webhooks/stripe] order confirmation email skipped",
+                result.orderId,
+                mail.reason ?? "",
+              );
+            } else {
+              console.info(
+                "[webhooks/stripe] order confirmation email sent",
+                result.orderId,
+              );
+            }
+          } catch (err) {
+            console.error(
+              "[webhooks/stripe] order confirmation email error",
+              result.orderId,
+              err,
+            );
+          }
+        } else {
+          console.log(
+            "[webhooks/stripe][debug] sendOrderConfirmationEmail: skipped (alreadyPaid)",
+            { orderId: result.orderId },
+          );
+        }
       }
     }
   } catch (err) {
