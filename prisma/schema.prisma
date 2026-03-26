@@ -1,0 +1,397 @@
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  CANCELLED
+  ON_HOLD
+}
+
+enum SupplierProvider {
+  MANUAL
+  ALIEXPRESS
+  CJ_DROPSHIPPING
+  SPOCKET
+  PRINTFUL
+  PRINTIFY
+  CUSTOM_API
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Core
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          UserRole @default(CUSTOMER)
+  phone         String?
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  addresses Address[]
+  carts     Cart[]
+  orders    Order[]
+  reviews   Review[]
+  wishlists Wishlist[]
+
+  @@index([role, isActive])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  label       String?  @db.VarChar(64)
+  recipient   String?  @db.VarChar(255)
+  line1       String   @db.VarChar(255)
+  line2       String?  @db.VarChar(255)
+  city        String   @db.VarChar(120)
+  region      String?  @db.VarChar(120)
+  postalCode  String   @db.VarChar(32)
+  countryCode String   @db.VarChar(2)
+  phone       String?  @db.VarChar(32)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDefault])
+  @@map("addresses")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  description String? @db.Text
+  image       String? @db.VarChar(2048)
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  products Product[]
+
+  @@index([isActive, slug])
+  @@map("categories")
+}
+
+model Supplier {
+  id           String           @id @default(cuid())
+  name         String           @db.VarChar(255)
+  slug         String           @unique @db.VarChar(255)
+  provider     SupplierProvider @default(MANUAL)
+  apiBaseUrl   String?          @db.VarChar(2048)
+  apiKey       String?          @db.Text
+  contactEmail String?          @db.VarChar(255)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  products         Product[]
+  supplierProducts SupplierProduct[]
+
+  @@index([provider, slug])
+  @@map("suppliers")
+}
+
+model Product {
+  id                String            @id @default(cuid())
+  name              String            @db.VarChar(500)
+  slug              String            @unique @db.VarChar(500)
+  sku               String            @unique @db.VarChar(120)
+  description       String?           @db.Text
+  shortDescription  String?           @db.VarChar(2000)
+  brand             String?           @db.VarChar(255)
+  price             Decimal           @db.Decimal(10, 2)
+  compareAtPrice    Decimal?          @db.Decimal(10, 2)
+  costPrice         Decimal?          @db.Decimal(10, 2)
+  currency          String            @default("USD") @db.VarChar(3)
+  stock             Int               @default(0)
+  trackInventory    Boolean           @default(true)
+  isActive          Boolean           @default(true)
+  isFeatured        Boolean           @default(false)
+  requiresShipping  Boolean           @default(true)
+  categoryId        String
+  supplierId        String?
+  supplierSku       String?           @db.VarChar(255)
+  supplierPrice     Decimal?          @db.Decimal(10, 2)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  seoTitle          String?           @db.VarChar(255)
+  seoDescription    String?           @db.VarChar(500)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  images           ProductImage[]
+  supplierProducts SupplierProduct[]
+  cartItems        CartItem[]
+  orderItems       OrderItem[]
+  reviews          Review[]
+  wishlists        Wishlist[]
+
+  @@index([categoryId, isActive])
+  @@index([supplierId])
+  @@index([slug])
+  @@index([isActive, isFeatured])
+  @@index([fulfillmentStatus, isActive])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String   @db.VarChar(2048)
+  alt       String?  @db.VarChar(500)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@map("product_images")
+}
+
+model SupplierProduct {
+  id            String   @id @default(cuid())
+  supplierId    String
+  productId     String
+  externalSku   String   @db.VarChar(255)
+  supplierPrice Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, productId])
+  @@index([externalSku])
+  @@map("supplier_products")
+}
+
+// ---------------------------------------------------------------------------
+// Cart
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String?  @unique
+  sessionId String?  @unique @db.VarChar(128)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([updatedAt])
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+// ---------------------------------------------------------------------------
+// Orders & payments
+// ---------------------------------------------------------------------------
+
+model Order {
+  id                String            @id @default(cuid())
+  orderNumber       String            @unique @db.VarChar(64)
+  userId            String?
+  email             String            @db.VarChar(255)
+  customerName      String?           @db.VarChar(255)
+  phone             String?           @db.VarChar(64)
+  city              String?           @db.VarChar(120)
+  line1             String?           @db.VarChar(255)
+  comment           String?           @db.Text
+  subtotalAmount    Decimal           @db.Decimal(10, 2)
+  totalAmount       Decimal           @db.Decimal(10, 2)
+  currency          String            @default("USD") @db.VarChar(3)
+  status            OrderStatus       @default(PENDING)
+  paymentStatus     PaymentStatus     @default(PENDING)
+  fulfillmentStatus     FulfillmentStatus @default(UNFULFILLED)
+  stripeSessionId       String?           @unique @db.VarChar(255)
+  stripePaymentIntentId String?           @unique @db.VarChar(255)
+  trackingNumber        String?           @db.VarChar(120)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([email])
+  @@index([status, paymentStatus])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String?
+  productName String   @db.VarChar(500)
+  quantity    Int
+  price       Decimal  @db.Decimal(10, 2)
+  supplierSku String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String
+  provider   String        @db.VarChar(64)
+  amount     Decimal       @db.Decimal(10, 2)
+  currency   String        @default("USD") @db.VarChar(3)
+  status     PaymentStatus @default(PENDING)
+  rawPayload Json?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, status])
+  @@index([provider, status])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Content & settings
+// ---------------------------------------------------------------------------
+
+model SiteSettings {
+  id           Int      @id @default(1)
+  siteName     String   @db.VarChar(255)
+  supportEmail String   @db.VarChar(255)
+  currency     String   @default("USD") @db.VarChar(3)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model Banner {
+  id        String    @id @default(cuid())
+  title     String?   @db.VarChar(255)
+  subtitle  String?   @db.VarChar(500)
+  image     String    @db.VarChar(2048)
+  linkUrl   String?   @db.VarChar(2048)
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@index([startsAt, endsAt])
+  @@map("banners")
+}
+
+model Review {
+  id                 String   @id @default(cuid())
+  productId          String
+  userId             String
+  rating             Int
+  title              String?  @db.VarChar(255)
+  body               String   @db.Text
+  isVerifiedPurchase Boolean  @default(false)
+  isApproved         Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId, isApproved])
+  @@index([rating])
+  @@map("reviews")
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@map("wishlists")
+}
