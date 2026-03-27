@@ -11,7 +11,7 @@ if (!connectionString) {
 
 const pool = new Pool({ connectionString });
 const prisma = new PrismaClient({
-  adapter: new PrismaPg(pool),
+  adapter: new PrismaPg(pool as ConstructorParameters<typeof PrismaPg>[0]),
 });
 
 async function main() {
