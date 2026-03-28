@@ -31,64 +31,41 @@ function Spinner({ className }: { className?: string }) {
 }
 
 type Props = {
-  submitCheckoutOrder: (formData: FormData) => void | Promise<void>;
   startStripeCheckoutSession: (formData: FormData) => void | Promise<void>;
-  codDisabled: boolean;
   stripeDisabled: boolean;
 };
 
 export function CheckoutFormActions({
-  submitCheckoutOrder,
   startStripeCheckoutSession,
-  codDisabled,
   stripeDisabled,
 }: Props) {
   const { pending } = useFormStatus();
-  const submitKindRef = useRef<"cod" | "stripe" | null>(null);
+  const clickedRef = useRef(false);
 
   return (
-    <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:flex-wrap">
-      <button
-        type="submit"
-        formAction={submitCheckoutOrder}
-        disabled={pending || codDisabled}
-        aria-busy={pending && submitKindRef.current === "cod"}
-        onClick={() => {
-          submitKindRef.current = "cod";
-        }}
-        className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[220px]"
-      >
-        {pending && submitKindRef.current === "cod" ? (
-          <>
-            <Spinner className="text-white" />
-            <span>Обробка…</span>
-          </>
-        ) : (
-          "Підтвердити замовлення"
-        )}
-      </button>
+    <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap">
       <button
         type="submit"
         formAction={startStripeCheckoutSession}
         disabled={pending || stripeDisabled}
-        aria-busy={pending && submitKindRef.current === "stripe"}
+        aria-busy={pending && clickedRef.current}
         onClick={() => {
-          submitKindRef.current = "stripe";
+          clickedRef.current = true;
         }}
-        className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-violet-300 bg-violet-50 px-6 py-3 text-sm font-medium text-violet-950 transition-colors hover:border-violet-400 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[220px]"
+        className="zento-btn-primary inline-flex min-h-11 flex-1 items-center justify-center gap-2 px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[240px]"
       >
-        {pending && submitKindRef.current === "stripe" ? (
+        {pending && clickedRef.current ? (
           <>
-            <Spinner className="text-violet-700" />
+            <Spinner className="text-white" />
             <span>Перехід до Stripe…</span>
           </>
         ) : (
-          "Оплатити карткою (Stripe)"
+          "Оплатити через Stripe"
         )}
       </button>
       <Link
         href="/cart"
-        className="inline-flex flex-1 items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-50 sm:min-w-[200px]"
+        className="zento-btn-ghost inline-flex min-h-11 flex-1 items-center justify-center px-6 py-3 text-sm sm:min-w-[200px]"
       >
         Назад до кошика
       </Link>

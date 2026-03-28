@@ -84,21 +84,34 @@ export default async function CartPage() {
 
   if (lines.length === 0) {
     return (
-      <div className="min-h-full bg-[#fafafa] text-zinc-900">
-        <div className="mx-auto flex max-w-lg flex-col items-center px-6 py-20 text-center sm:py-28">
-          <div className="rounded-2xl border border-zinc-200/80 bg-white px-10 py-14 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400">
+      <div className="zento-store">
+        <header className="sticky top-0 z-20 border-b border-stone-200/60 bg-[#f7f6f4]/85 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-5 py-4 sm:px-8 sm:py-5">
+            <Link href="/" className="zento-brand-nav">
+              {storeName}
+            </Link>
+            <Link
+              href="/"
+              className="zento-btn-ghost inline-flex px-4 py-2 text-xs sm:text-sm"
+            >
+              Каталог
+            </Link>
+          </div>
+        </header>
+        <div className="mx-auto flex max-w-lg flex-col items-center px-5 py-14 text-center sm:px-6 sm:py-20">
+          <div className="zento-card-lux w-full px-8 py-12 sm:px-10 sm:py-14">
+            <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-stone-500">
               Кошик
             </p>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-stone-900">
               Поки порожньо
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-500">
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
               Додайте товари з каталогу — вони з’являться тут.
             </p>
             <Link
               href="/"
-              className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+              className="zento-btn-primary mt-8 inline-flex min-h-11 w-full items-center justify-center px-6 py-3 text-sm"
             >
               До каталогу
             </Link>
@@ -167,56 +180,72 @@ export default async function CartPage() {
   const cartTotal = rows.reduce((sum, r) => sum + r.subtotal, 0);
 
   return (
-    <div className="min-h-full bg-[#fafafa] text-zinc-900">
-      <header className="border-b border-zinc-200/80 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto max-w-4xl px-6 py-5 sm:px-8">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400">
-            {storeName}
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Кошик
-          </h1>
+    <div className="zento-store">
+      <header className="sticky top-0 z-20 border-b border-stone-200/60 bg-[#f7f6f4]/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-8 sm:py-5">
+          <div>
+            <Link href="/" className="zento-brand-nav inline-block">
+              {storeName}
+            </Link>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+              Кошик
+            </h1>
+          </div>
+          <nav className="flex flex-wrap gap-2">
+            <Link
+              href="/"
+              className="zento-btn-ghost inline-flex px-4 py-2 text-xs sm:text-sm"
+            >
+              Каталог
+            </Link>
+            <Link
+              href="/checkout"
+              className="zento-btn-ghost inline-flex px-4 py-2 text-xs sm:text-sm"
+            >
+              Оформлення
+            </Link>
+          </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-10 sm:px-8 sm:py-12">
+      <main className="mx-auto max-w-4xl px-5 py-8 sm:px-8 sm:py-12">
         {rows.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200/80 bg-white p-10 text-center shadow-sm">
-            <p className="text-sm text-zinc-500">
+          <div className="zento-card-lux p-10 text-center">
+            <p className="text-sm leading-relaxed text-stone-600">
               Товари з кошика більше недоступні. Очистіть кошик або додайте нові
               позиції.
             </p>
             <Link
               href="/"
-              className="mt-6 inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-zinc-800"
+              className="zento-btn-primary mt-6 inline-flex min-h-11 items-center justify-center px-6 py-3 text-sm"
             >
               До каталогу
             </Link>
           </div>
         ) : (
           <>
-            <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
+            <ul className="zento-card-lux overflow-hidden">
               {rows.map((row) => (
                 <li
                   key={row.productId}
-                  className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8"
+                  className="flex flex-col gap-4 border-b border-stone-100 p-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-6"
                 >
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/products/${row.slug}`}
-                      className="text-base font-semibold tracking-tight text-zinc-900 transition-colors hover:text-zinc-600"
+                      className="text-base font-semibold tracking-tight text-stone-900 transition-colors hover:text-stone-600"
                     >
                       {row.name}
                     </Link>
-                    <p className="mt-1 text-sm tabular-nums text-zinc-500">
+                    <p className="mt-1.5 text-sm tabular-nums text-stone-500">
                       {formatMoney(row.unit, row.currency)} × {row.quantity}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-baseline justify-between gap-8 sm:flex-col sm:items-end sm:justify-center">
-                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                    <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-stone-400">
                       Підсумок
                     </span>
-                    <p className="text-lg font-medium tabular-nums text-zinc-900">
+                    <p className="text-lg font-semibold tabular-nums text-stone-900">
                       {formatMoney(row.subtotal, row.currency)}
                     </p>
                   </div>
@@ -224,21 +253,21 @@ export default async function CartPage() {
               ))}
             </ul>
 
-            <div className="mt-8 rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm sm:p-8">
-              <div className="flex flex-col gap-2 border-b border-zinc-100 pb-6 sm:flex-row sm:items-end sm:justify-between">
-                <span className="text-sm font-medium text-zinc-500">
+            <div className="zento-card-lux mt-8 p-6 sm:p-8">
+              <div className="flex flex-col gap-2 border-b border-stone-100 pb-6 sm:flex-row sm:items-end sm:justify-between">
+                <span className="text-sm font-medium text-stone-500">
                   Разом
                 </span>
                 {singleCurrency ? (
-                  <p className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900">
+                  <p className="text-2xl font-semibold tabular-nums tracking-tight text-stone-900">
                     {formatMoney(cartTotal, singleCurrency)}
                   </p>
                 ) : (
-                  <div className="text-right">
-                    <p className="text-2xl font-semibold tabular-nums text-zinc-900">
+                  <div className="text-right sm:text-left">
+                    <p className="text-2xl font-semibold tabular-nums text-stone-900">
                       {formatMoney(cartTotal, rows[0]?.currency ?? "USD")}
                     </p>
-                    <p className="mt-1 text-xs text-amber-700">
+                    <p className="mt-1 text-xs text-amber-800/90">
                       У кошику кілька валют; сума — орієнтовна (перевірте позиції).
                     </p>
                   </div>
@@ -248,13 +277,13 @@ export default async function CartPage() {
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href="/checkout"
-                  className="inline-flex flex-1 items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 sm:min-w-[200px]"
+                  className="zento-btn-primary inline-flex min-h-11 flex-1 items-center justify-center px-6 py-3 text-sm sm:min-w-[200px]"
                 >
-                  Оформити замовлення
+                  До оплати (Stripe)
                 </Link>
                 <Link
                   href="/"
-                  className="inline-flex flex-1 items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-50 sm:min-w-[200px]"
+                  className="zento-btn-ghost inline-flex min-h-11 flex-1 items-center justify-center px-6 py-3 text-sm sm:min-w-[200px]"
                 >
                   Продовжити покупки
                 </Link>

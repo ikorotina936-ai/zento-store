@@ -55,7 +55,30 @@ async function main() {
     },
   });
 
-  console.log("Seed: 2 test products upserted (slug: test-product-alpha, test-product-beta).");
+  await prisma.product.upsert({
+    where: { slug: "hoodie-zento" },
+    create: {
+      name: "Hoodie ZENTO",
+      slug: "hoodie-zento",
+      sku: "ZENTO-001",
+      description: "Худі ZENTO.",
+      shortDescription: "Худі ZENTO — базовий дропшипінг-товар.",
+      price: "29.99",
+      supplierPrice: "10",
+      categoryId: category.id,
+    },
+    update: {
+      name: "Hoodie ZENTO",
+      description: "Худі ZENTO.",
+      shortDescription: "Худі ZENTO — базовий дропшипінг-товар.",
+      price: "29.99",
+      supplierPrice: "10",
+    },
+  });
+
+  console.log(
+    `Seed: category slug=seed-test id=${category.id}; products upserted: test-product-alpha, test-product-beta, hoodie-zento.`,
+  );
 }
 
 main()

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db/prisma";
+import { prismaWhereExcludeBlockedProductImages } from "@/lib/store/storefront-image-blocklist";
 import { FulfillmentStatus, Prisma } from "@/generated/prisma/client";
 
 const createProductSchema = z.object({
@@ -15,6 +16,7 @@ const createProductSchema = z.object({
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
+      where: { ...prismaWhereExcludeBlockedProductImages() },
       orderBy: { createdAt: "desc" },
     });
 

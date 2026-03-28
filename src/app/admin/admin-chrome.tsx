@@ -20,6 +20,12 @@ export function AdminChrome({ children }: { children: React.ReactNode }) {
             >
               Замовлення
             </Link>
+            <Link
+              href="/admin/products"
+              className="text-zinc-700 hover:text-indigo-700"
+            >
+              Товари
+            </Link>
           </nav>
           <form action="/admin/logout" method="post">
             <button
